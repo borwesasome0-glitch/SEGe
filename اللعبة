@@ -1,0 +1,831 @@
+```html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>SLITHER ARENA</title>
+  <style>
+    :root {
+      --bg-dark: #060a14;
+      --panel-bg: rgba(13, 20, 38, 0.92);
+      --panel-border: rgba(255, 255, 255, 0.14);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-primary: #00f0b5;
+      --accent-secondary: #38bdf8;
+      --accent-gold: #fbbf24;
+      --accent-danger: #ff4769;
+      --radius-lg: 22px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+    }
+
+    /* Fullscreen Game Canvas */
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+      touch-action: none;
+      background: radial-gradient(circle at center, #0e172a 0%, #060a14 100%);
+    }
+
+    /* Screen Layers & Modals */
+    .screen-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: radial-gradient(circle at center, rgba(10, 16, 32, 0.72) 0%, rgba(4, 7, 16, 0.92) 100%);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      overflow-y: auto;
+    }
+
+    /* Main menu visible by default to guarantee zero black screen */
+    #mainMenu {
+      display: flex;
+    }
+
+    #mainMenu.hidden {
+      display: none;
+    }
+
+    .screen-layer.active {
+      display: flex;
+    }
+
+    .screen-layer.modal-top {
+      z-index: 40;
+    }
+
+    /* Cards */
+    .menu-card {
+      width: min(94vw, 440px);
+      background: var(--panel-bg);
+      border: 1.5px solid var(--panel-border);
+      border-radius: var(--radius-lg);
+      padding: 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
+      max-height: 94vh;
+      overflow-y: auto;
+    }
+
+    .modal-card {
+      width: min(95vw, 680px);
+      max-height: 90vh;
+      background: rgba(11, 18, 35, 0.97);
+      border: 1.5px solid var(--panel-border);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.85);
+    }
+
+    .modal-card.compact {
+      width: min(94vw, 430px);
+    }
+
+    .modal-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: 1.06rem;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .modal-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Logo */
+    .logo-wrap {
+      text-align: center;
+      margin-bottom: 2px;
+    }
+
+    .logo-title {
+      font-size: clamp(1.9rem, 6vw, 2.55rem);
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #00f0b5 0%, #38bdf8 50%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(0, 240, 181, 0.28);
+      direction: ltr;
+    }
+
+    .logo-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Stats Strip */
+    .menu-stats-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mini-stat {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: 9px 12px;
+      text-align: center;
+    }
+
+    .mini-stat-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .mini-stat-val {
+      font-size: 1.15rem;
+      font-weight: 900;
+      margin-top: 2px;
+      direction: ltr;
+    }
+
+    /* Inputs */
+    .name-input {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: var(--radius-md);
+      border: 1.5px solid rgba(255, 255, 255, 0.18);
+      background: rgba(5, 10, 22, 0.78);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .name-input:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(0, 240, 181, 0.22);
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-family: inherit;
+      font-size: 0.94rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.12s ease, filter 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-play {
+      background: linear-gradient(135deg, #00f0b5 0%, #0ea5e9 100%);
+      color: #04131c;
+      font-size: 1.08rem;
+      padding: 14px 18px;
+      box-shadow: 0 10px 28px rgba(0, 240, 181, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    .btn-play:hover {
+      filter: brightness(1.06);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .btn-danger {
+      background: rgba(255, 71, 105, 0.18);
+      color: #ff7a93;
+      border: 1px solid rgba(255, 71, 105, 0.45);
+    }
+
+    .btn-revive {
+      background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+      color: #fff;
+      font-size: 1rem;
+      padding: 13px 16px;
+      box-shadow: 0 10px 26px rgba(245, 158, 11, 0.38);
+    }
+
+    .btn-revive:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.75);
+      box-shadow: none;
+    }
+
+    .btn-icon-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      font-size: 1.3rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .btn-sub-tag {
+      font-size: 0.72rem;
+      opacity: 0.78;
+      font-weight: 600;
+    }
+
+    .controls-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.5;
+      padding-top: 2px;
+    }
+
+    /* Skin Selector */
+    .skin-preview-box {
+      background: radial-gradient(circle at center, rgba(30, 41, 59, 0.85), rgba(7, 11, 22, 0.95));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    #skinPreviewCanvas {
+      width: 100%;
+      max-width: 380px;
+      height: 105px;
+      display: block;
+      border-radius: 10px;
+    }
+
+    .skin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+      gap: 9px;
+    }
+
+    .skin-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.12s, border-color 0.2s, background 0.2s;
+    }
+
+    .skin-card.selected {
+      border-color: var(--accent-primary);
+      background: rgba(0, 240, 181, 0.12);
+      box-shadow: 0 0 18px rgba(0, 240, 181, 0.22);
+    }
+
+    .skin-swatch {
+      width: 100%;
+      height: 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .skin-card-name {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .skin-card-cat {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    /* Map Selector */
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .map-card {
+      border-radius: var(--radius-md);
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.04);
+      transition: transform 0.15s, border-color 0.2s;
+    }
+
+    .map-card.selected {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 22px rgba(0, 240, 181, 0.28);
+    }
+
+    .map-banner {
+      height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.9rem;
+    }
+
+    .map-info {
+      padding: 11px 13px;
+    }
+
+    .map-name {
+      font-size: 0.94rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .map-desc {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* Settings */
+    .setting-row {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .setting-row-inline {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .setting-label {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .setting-val {
+      color: var(--accent-primary);
+      font-weight: 900;
+      direction: ltr;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-primary);
+      cursor: pointer;
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .seg-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .chip-btn {
+      padding: 8px 6px;
+      border-radius: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+      font-family: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .chip-btn.active {
+      background: rgba(0, 240, 181, 0.2);
+      border-color: var(--accent-primary);
+      color: #fff;
+    }
+
+    .toggle-btn {
+      padding: 7px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .toggle-btn.on {
+      background: var(--accent-primary);
+      color: #04131c;
+      border-color: var(--accent-primary);
+    }
+
+    .reset-confirm-box {
+      display: none;
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255, 71, 105, 0.12);
+      border: 1px solid rgba(255, 71, 105, 0.4);
+      gap: 8px;
+      flex-direction: column;
+    }
+
+    .reset-confirm-box.show {
+      display: flex;
+    }
+
+    /* HUD Layer (pointer-events: none so canvas receives mouse/touch cleanly) */
+    #hudLayer {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      pointer-events: none;
+    }
+
+    #hudLayer.active {
+      display: block;
+    }
+
+    .hud-panel {
+      position: fixed;
+      background: rgba(8, 14, 28, 0.68);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 9px 12px;
+      pointer-events: none;
+    }
+
+    .hud-stats {
+      top: max(12px, env(safe-area-inset-top));
+      left: max(12px, env(safe-area-inset-left));
+      min-width: 128px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hud-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .hud-stat-row strong {
+      color: #fff;
+      font-weight: 900;
+      direction: ltr;
+    }
+
+    .hud-stat-row.primary strong {
+      color: var(--accent-primary);
+      font-size: 1rem;
+    }
+
+    /* Top action buttons placed cleanly below stats on top-left so bottom-left is 100% free for Virtual Joystick */
+    .hud-top-actions {
+      position: fixed;
+      top: calc(max(12px, env(safe-area-inset-top)) + 114px);
+      left: max(12px, env(safe-area-inset-left));
+      display: flex;
+      gap: 7px;
+      pointer-events: auto;
+      z-index: 14;
+    }
+
+    .hud-icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(10, 16, 32, 0.78);
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      transition: transform 0.1s, background 0.15s;
+    }
+
+    .hud-icon-btn:active {
+      transform: scale(0.92);
+      background: rgba(0, 240, 181, 0.25);
+    }
+
+    .hud-leaderboard {
+      top: max(12px, env(safe-area-inset-top));
+      right: max(12px, env(safe-area-inset-right));
+      width: 178px;
+    }
+
+    .lb-title {
+      font-size: 0.76rem;
+      font-weight: 900;
+      color: var(--accent-gold);
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .lb-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.72rem;
+    }
+
+    .lb-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 2px 5px;
+      border-radius: 5px;
+      color: #cbd5e1;
+    }
+
+    .lb-item.me {
+      background: rgba(0, 240, 181, 0.2);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .lb-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 112px;
+    }
+
+    /* =========================================================================
+       VIRTUAL JOYSTICK (SOLE MOBILE/TOUCH STEERING CONTROL)
+       Left half of screen acts as responsive touch zone; anchored ring in bottom-left
+       ========================================================================= */
+    #joystickZone {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 52vw;
+      height: 62vh;
+      pointer-events: auto;
+      touch-action: none;
+      z-index: 11;
+    }
+
+    #joystickBase {
+      position: fixed;
+      left: max(28px, env(safe-area-inset-left));
+      bottom: max(28px, env(safe-area-inset-bottom));
+      width: 124px;
+      height: 124px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.16) 72%, rgba(0, 240, 181, 0.18) 100%);
+      border: 2.5px solid rgba(0, 240, 181, 0.48);
+      box-shadow: 0 0 24px rgba(0, 240, 181, 0.18), inset 0 0 18px rgba(0, 240, 181, 0.12);
+      pointer-events: none;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.72;
+      transition: opacity 0.18s ease, border-color 0.18s ease;
+      z-index: 12;
+    }
+
+    /* Show joystick on touch devices or whenever touch is active */
+    #joystickBase.visible {
+      display: flex;
+    }
+
+    #joystickBase.active {
+      opacity: 1;
+      border-color: rgba(0, 240, 181, 0.92);
+      box-shadow: 0 0 32px rgba(0, 240, 181, 0.35), inset 0 0 22px rgba(0, 240, 181, 0.22);
+    }
+
+    #joystickKnob {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #67ffe0 0%, #00f0b5 52%, #0284c7 100%);
+      border: 2px solid rgba(255, 255, 255, 0.78);
+      box-shadow: 0 0 22px rgba(0, 240, 181, 0.65);
+      transform: translate3d(0, 0, 0);
+      transition: transform 0.08s ease-out;
+      pointer-events: none;
+    }
+
+    #joystickBase.active #joystickKnob {
+      transition: none;
+      box-shadow: 0 0 30px rgba(0, 240, 181, 0.92);
+    }
+
+    /* Independent Bottom-Right Boost Button */
+    #boostBtn {
+      position: fixed;
+      bottom: max(28px, env(safe-area-inset-bottom));
+      right: max(24px, env(safe-area-inset-right));
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      border: 2.5px solid rgba(0, 240, 181, 0.85);
+      background: radial-gradient(circle, rgba(0, 240, 181, 0.36), rgba(14, 165, 233, 0.24));
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.86rem;
+      font-weight: 900;
+      cursor: pointer;
+      pointer-events: auto;
+      touch-action: none;
+      z-index: 13;
+      box-shadow: 0 8px 26px rgba(0, 240, 181, 0.32);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      transition: transform 0.1s, background 0.15s;
+    }
+
+    #boostBtn.boosting {
+      transform: scale(0.92);
+      background: radial-gradient(circle, rgba(251, 191, 36, 0.7), rgba(236, 72, 153, 0.48));
+      border-color: #fde047;
+      box-shadow: 0 0 30px rgba(251, 191, 36, 0.65);
+    }
+
+    /* Live Shield Countdown Badge */
+    .hud-shield-badge {
+      position: fixed;
+      top: max(14px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(0, 240, 181, 0.28), rgba(251, 191, 36, 0.25));
+      border: 1.5px solid rgba(0, 240, 181, 0.9);
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 900;
+      box-shadow: 0 0 24px rgba(0, 240, 181, 0.45);
+      pointer-events: none;
+      z-index: 14;
+    }
+
+    .hud-shield-badge.active {
+      display: inline-flex;
+    }
+
+    /* Game Over Stats */
+    .gameover-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat-box-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .stat-box-value {
+      font-size: 1.2rem;
+      font-weight: 900;
+      margin-top: 2px;
+      direction: ltr;
+    }
+
+    .new-best-pill {
+      display: none;
+      align-self: center;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(251, 191, 36, 0.2);
+      border: 1px solid var(--accent-gold);
+      color: #fde047;
+      font-size: 0.8rem;
+      font-weight: 900;
+    }
+
+    .new-best-pill.show {
+      display: inline-block;
+    }
+
+    /* Wi-Fi Offline Blocking Overlay */
+    #offlineOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: radial-gradient(circle at center, rgba(10, 16, 32, 0.96) 0%, rgba(3, 6, 14, 0.99) 100%);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px)
